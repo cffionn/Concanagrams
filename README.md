@@ -1,10 +1,10 @@
-# Concanagrams
-A game testing repo
+# Concanagrams  
+A game testing repo  
 
-To build, run
-make
-To clean, run
-make clean
+To build, run  
+make  
+To clean, run  
+make clean  
 
-After successful make, to run program do
-./bin/runConcanagrams.exe <NUMBER OF PLAYERS>
+After successful make, to run program do  
+./bin/runConcanagrams.exe <NUMBER OF PLAYERS>  
