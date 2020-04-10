@@ -46,5 +46,7 @@ clean:
 	rm -f include/#*#
 	rm -f input/*~
 	rm -f input/#*#
+	rm -rf lib
+	rm -rf obj
 	rm -f src/*~
 	rm -f src/#*#
