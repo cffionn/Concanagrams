@@ -13,6 +13,10 @@
 #include <thread>
 #include <vector>
 
+//Local
+#include "include/checkMakeDir.h"
+#include "include/stringUtil.h"
+
 const int doGlobalDebug = false;
 
 std::map<std::string, int> scrabbleFileToMap(std::string fileName)
@@ -52,15 +56,30 @@ std::string convertInputStr(std::string inStr)
   return inStr;
 }
 
-int runConcanagrams(const int nPlayers)
+int runConcanagrams(const int nPlayers, const bool doJudgePrompts)
 {
   if(doGlobalDebug) std::cout << "FILE, LINE: " << __FILE__ << ", " << __LINE__ << std::endl;
   
   std::cout << "Preparing for Concanagrams, " << nPlayers << " players..." << std::endl;
-
-  std::srand(unsigned(std::time(0)));
   
-  const std::string scrabbleFreqFileName = "input/scrabbleFreq.txt";
+  std::srand(unsigned(std::time(0)));
+
+  const std::string dateStr = getDateStr();
+  checkMakeDir check;
+  check.doCheckMakeDir("output");
+  check.doCheckMakeDir("output/" + dateStr);
+
+  const std::string timeStr = getTimeStr();
+  std::string outGameLogName = "output/" + dateStr + "/gameLog_" + dateStr + "_" + timeStr + ".log";
+  std::string outPromptLogName = "output/" + dateStr + "/promptLog_" + dateStr + "_" + timeStr + ".log";
+
+  std::ofstream gameLog(outGameLogName.c_str());
+  std::ofstream promptLog(outPromptLogName.c_str());
+  gameLog << "Preparing for Concanagrams, " << nPlayers << " players..." << std::endl;
+    
+  
+  //  const std::string scrabbleFreqFileName = "input/scrabbleFreq.txt";
+  const std::string scrabbleFreqFileName = "input/bananagramsFreq.txt";
   std::map<std::string, int> scrabbleFreqMap = scrabbleFileToMap(scrabbleFreqFileName);
 
   const std::string scrabblePointFileName = "input/scrabblePoint.txt";
@@ -79,8 +98,12 @@ int runConcanagrams(const int nPlayers)
 
   std::random_shuffle(promptVect.begin(), promptVect.end());
   
-  const int nTilesPerPlayer = 14;
+  const int nTilesPerPlayer = 21;
   int nTiles = 100;
+
+  double answerTime = 60.;
+  int updates = 6;
+  int intervals = answerTime/updates;
   
   double tilesPerNPlayersFrac = 7*4./100.;//From scrabble
 
@@ -91,8 +114,10 @@ int runConcanagrams(const int nPlayers)
   if(doGlobalDebug) std::cout << "FILE, LINE: " << __FILE__ << ", " << __LINE__ << std::endl;
 
   std::cout << nTiles << " tiles for " << nPlayers << " players..." << std::endl;
+  gameLog << nTiles << " tiles for " << nPlayers << " players..." << std::endl;
   int mult = nTiles/100;
   std::cout << " (multx" << mult << ")" << std::endl;
+  gameLog << " (multx" << mult << ")" << std::endl;
   
   int nRound = 1;
 
@@ -102,15 +127,66 @@ int runConcanagrams(const int nPlayers)
     playerScores.push_back(0);
   }
   
-  while(nRound <= (int)promptVect.size()){
+  while((nRound <= (int)promptVect.size() || doJudgePrompts) && nRound <= nPlayers){
     std::cout << std::endl;
+    gameLog << std::endl;
     std::cout << "Round " << nRound << "!" << std::endl;
+    gameLog << "Round " << nRound << "!" << std::endl;
     std::cout << "Scores: " << std::endl;
+    gameLog << "Scores: " << std::endl;
     for(int pI = 0; pI < nPlayers; ++pI){
       std::cout << " Player " << pI << ": " << playerScores[pI] << std::endl;
+      gameLog << " Player " << pI << ": " << playerScores[pI] << std::endl;
     }
 
-    std::cout << "Prompt: \'" << promptVect[nRound - 1] << "\'" << std::endl;
+
+    int judgePos = (nRound-1)%nPlayers;
+    std::cout << "Player " << judgePos << " is judge" << std::endl;
+    gameLog << "Player " << judgePos << " is judge" << std::endl;
+    
+    if(!doJudgePrompts){
+      std::cout << "Prompt: \'" << promptVect[nRound - 1] << "\'" << std::endl;
+      gameLog << "Prompt: \'" << promptVect[nRound - 1] << "\'" << std::endl;
+    }
+    if(doJudgePrompts){
+      std::string promptStr = "";
+      while(promptStr.size() == 0){
+	std::cout << "Judge (Player " << judgePos << "), enter prompt: ";
+	gameLog << "Judge (Player " << judgePos << "), enter prompt: ";
+	std::getline(std::cin, promptStr);
+	if(promptStr.size() == 0){
+	  std::cout << " Please enter a valid prompt" << std::endl;
+	  gameLog << " Please enter a valid prompt" << std::endl;
+	  promptStr = "";
+	}
+	else{
+	  std::string yesNoStr = "";
+	  while(yesNoStr.size() == 0){
+	    std::cout << "Is \'" << promptStr << "\' the prompt you wanted (y/n)?" << std::endl;
+	    gameLog << "Is \'" << promptStr << "\' the prompt you wanted (y/n)?" << std::endl;
+	    std::getline(std::cin, yesNoStr);
+	    if(yesNoStr.size() == 1){
+	      if(yesNoStr.find("n") != std::string::npos){
+		promptStr = "";
+	      }
+	      else if(yesNoStr.find("y") == std::string::npos){
+		std::cout << "Please enter \'y\' or \'n\'" << std::endl;
+		gameLog << "Please enter \'y\' or \'n\'" << std::endl;
+		yesNoStr = "";
+	      }
+	    }
+	    else{
+	      std::cout << "Please enter \'y\' or \'n\'" << std::endl;
+	      gameLog << "Please enter \'y\' or \'n\'" << std::endl;
+	      yesNoStr = "";
+	    }
+	  }	  
+	}	
+      }      
+      std::cout << "Prompt: \'" << promptStr << "\'" << std::endl;
+      gameLog << "Prompt: \'" << promptStr << "\'" << std::endl;
+      promptLog << promptStr << std::endl;
+    }
     
     std::vector<std::string> letterVect;
     for(auto const & val : scrabbleFreqMap){
@@ -129,18 +205,31 @@ int runConcanagrams(const int nPlayers)
     
     for(int lI = 0; lI < nTilesPerPlayer; ++lI){
       for(int pI = 0; pI < nPlayers; ++pI){
+	if(playerOrder[pI] == judgePos) continue;
+
 	int pos = lI*nPlayers + pI;
 	letterStrs[playerOrder[pI]] = letterStrs[playerOrder[pI]] + letterVect[pos] + ",";	
       }
     }
+
+    letterStrs[judgePos] = "JUDGE";
     
     for(int pI = 0; pI < nPlayers; ++pI){
       std::cout << " Player " << pI << ": \'" << letterStrs[pI] << "\'" << std::endl;
+      gameLog << " Player " << pI << ": \'" << letterStrs[pI] << "\'" << std::endl;
+    }
+
+    std::cout << "Prepare answers now!" << std::endl;
+    for(int tI = 0; tI < updates; ++tI){
+      std::cout << " " << answerTime - tI*intervals << " seconds!!!" << std::endl;
+      gameLog << " " << answerTime - tI*intervals << " seconds!!!" << std::endl;
+      std::this_thread::sleep_for(std::chrono::milliseconds(intervals*1000));
     }
     
     std::string answerString = "";
     while(answerString.size() == 0){
       std::cout << "Answer?" << std::endl;
+      gameLog << "Answer?" << std::endl;
       std::getline(std::cin, answerString);      
       answerString = convertInputStr(answerString);
       if(answerString.size() == 0) continue;
@@ -206,23 +295,29 @@ int runConcanagrams(const int nPlayers)
 	}
       }
     
-  if(doGlobalDebug) std::cout << "FILE, LINE: " << __FILE__ << ", " << __LINE__ << std::endl;
+      if(doGlobalDebug) std::cout << "FILE, LINE: " << __FILE__ << ", " << __LINE__ << std::endl;
+
       if(possiblePlayers.size() == 0){
 	std::cout << "Given answer \'" << answerString << "\' is not compatible w/ any players letter set, please re-input." << std::endl;
+	gameLog << "Given answer \'" << answerString << "\' is not compatible w/ any players letter set, please re-input." << std::endl;
 	answerString = "";
       }
       else if(possiblePlayers.size() != 1){	
 	int playerWhoWon = -1;
 	while(playerWhoWon < 0){
 	  std::cout << "Which player corresponds to that answer: " << std::endl;
+	  gameLog << "Which player corresponds to that answer: " << std::endl;
 	  for(unsigned int pI = 0; pI < possiblePlayers.size(); ++pI){
 	    std::cout << " " << pI << ": Player " << possiblePlayers[pI] << std::endl;
+	    gameLog << " " << pI << ": Player " << possiblePlayers[pI] << std::endl;
 	  }
 	  std::string playerWhoWonStr;
 	  std::getline(std::cin, playerWhoWonStr);
 	  playerWhoWon = std::stoi(playerWhoWonStr);
 	  if(playerWhoWon < 0 || playerWhoWon >= (int)possiblePlayers.size()){
 	    std::cout << "Invalid input, please input again." << std::endl;
+	    gameLog << "Invalid input, please input again." << std::endl;
+	    playerWhoWon = -1;
 	  }
 	  else{	    
 	    possiblePlayers.push_back(possiblePlayers[playerWhoWon]);
@@ -238,8 +333,10 @@ int runConcanagrams(const int nPlayers)
       
       if(possiblePlayers.size() == 1){
 	std::cout << "Player " << possiblePlayers[0] << " won!" << std::endl;
+	gameLog << "Player " << possiblePlayers[0] << " won!" << std::endl;
 	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 	std::cout << "Player " << possiblePlayers[0] << " earned " << possibleScores[0] << " points!" << std::endl;
+	gameLog << "Player " << possiblePlayers[0] << " earned " << possibleScores[0] << " points!" << std::endl;
 	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 	playerScores[possiblePlayers[0]] += possibleScores[0];
 
@@ -253,15 +350,36 @@ int runConcanagrams(const int nPlayers)
     promptVect.erase(promptVect.begin());
   }
   if(doGlobalDebug) std::cout << "FILE, LINE: " << __FILE__ << ", " << __LINE__ << std::endl;
-  std::cout << "Out of prompts (" << promptVect.size() << " defined prompts)" << std::endl;
+
+  if(!doJudgePrompts){
+    std::cout << "Out of prompts (" << promptVect.size() << " defined prompts)" << std::endl;
+    gameLog << "Out of prompts (" << promptVect.size() << " defined prompts)" << std::endl;
+  }
+
+  std::cout << "FINAL SCORES: " << std::endl;
+  int maxScore = 0;
+  int winner = -1;
+  for(int pI = 0; pI < nPlayers; ++pI){
+    std::cout << " Player " << pI << ": " << playerScores[pI] << std::endl;
+    gameLog << " Player " << pI << ": " << playerScores[pI] << std::endl;
+    if(playerScores[pI] > maxScore){
+      maxScore = playerScores[pI];
+      winner = pI;
+    }
+  }
+  std::cout << "PLAYER " << winner << " WINS!!!!!!!" << std::endl;  
   std::cout << "RUNCONCANAGRAMS COMPLETE. return 0." << std::endl;
+
+  gameLog.close();
+  promptLog.close();
+
   return 0;
 }
 
 int main(int argc, char* argv[])
 {
-  if(argc != 2){
-    std::cout << "Usage: ./bin/runConcanagrams.exe <nPlayers>" << std::endl;
+  if(argc != 3){
+    std::cout << "Usage: ./bin/runConcanagrams.exe <nPlayers> <doJudgePrompts>" << std::endl;
     std::cout << "TO DEBUG:" << std::endl;
     std::cout << " export DOGLOBALDEBUGROOT=1 #from command line" << std::endl;
     std::cout << "TO TURN OFF DEBUG:" << std::endl;
@@ -271,6 +389,6 @@ int main(int argc, char* argv[])
   }
  
   int retVal = 0;
-  retVal += runConcanagrams(std::stoi(argv[1]));
+  retVal += runConcanagrams(std::stoi(argv[1]), std::stoi(argv[2]));
   return retVal;
 }
